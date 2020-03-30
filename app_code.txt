@@ -1,0 +1,263 @@
+library(shiny)
+library(DLSDynamicsData)
+#library(forcats)
+#library(tidyr)
+#library(stringr)
+#library(ggplot2)
+#library(tidyverse)
+#library(stats)
+#library(factoextra)
+#library(ggpubr)
+#library(stats)
+#library(dplyr)
+#library(purrr)
+#library(devtools)
+
+
+
+ui <- fluidPage(
+
+  # Title of app
+  titlePanel("Loading Data and Visualisation with Boxplot and Scatter Graph"),
+
+  # Side panel to include the file upload and variable choice
+  sidebarLayout(
+    sidebarPanel(
+
+      fileInput(inputId = "file",
+                label = "Data to Visualise",
+                accept = ".csv",
+                buttonLabel = "Choose File",
+                placeholder = "No file selected..."),
+      helpText("Default max. file size is 5MB"),
+      checkboxInput(inputId = "header",
+                    label = "Header in file?",
+                    value = TRUE),
+      uiOutput(outputId = "file_loaded"),
+
+      selectInput(inputId = "variable",
+                  label = "Variable of Interest",
+                  choices = c("Membrane_Type", "Protein_Type", "Protein_Conc", "Lipid_Type", "Lipid_Conc", "Polymer_Type",
+                              "Polymer_Percentage", "Buffer_Type", "Buffer_Conc", "pH", "Salt_Conc", "Polymer_Mr", "Latex_Nanospheres",
+                              "Experiment_ID"),
+                  selected = "Experiment_ID"),
+      selectInput(inputId = "xvar",
+                  label = "Grouping Variable",
+                  choices = c("Membrane_Type", "Protein_Type", "Protein_Conc", "Lipid_Type", "Lipid_Conc", "Polymer_Type",
+                              "Polymer_Percentage", "Buffer_Type", "Buffer_Conc", "pH", "Salt_Conc", "Polymer_Mr", "Latex_Nanospheres",
+                              "Experiment_ID"),
+                  selected = "Experiment_ID"),
+      textInput(inputId = "plot_title",
+                label = "Optional Title for Graph",
+                value = "")
+    ),
+    mainPanel(
+      tabsetPanel(type = "tab",
+        tabPanel("About File",
+                 tableOutput(outputId = "about_file")
+                 ),
+        tabPanel("Conditions in Data",
+                 tableOutput(outputId = "data_table")
+                 ),
+        tabPanel("Summary of Data Conditions",
+                 tableOutput(outputId = "tab1"),
+                 tableOutput(outputId = "tab2"),
+                 tableOutput(outputId = "tab3"),
+                 tableOutput(outputId = "tab4"),
+                 tableOutput(outputId = "tab5"),
+                 tableOutput(outputId = "tab6"),
+                 tableOutput(outputId = "tab7"),
+                 tableOutput(outputId = "tab8"),
+                 tableOutput(outputId = "tab9"),
+                 tableOutput(outputId = "tab10"),
+                 tableOutput(outputId = "tab11"),
+                 tableOutput(outputId = "tab12")
+                 ),
+        tabPanel("Log Diameter",
+                 checkboxInput(inputId = "original",
+                               label = "Original (200nm) diameter?"),
+                 checkboxInput(inputId = "target",
+                               label = "Target (10nm) diameter?"),
+                 numericInput(inputId = "indent",
+                              label = "Shift labels of original/target lines",
+                              value = 1),
+                 textOutput(outputId = "logD_title"),
+                 plotOutput(outputId = "logD_boxplot")
+                 ),
+        tabPanel("Log Polydispersity",
+                 textOutput(outputId = "logPD_title"),
+                 plotOutput(outputId = "logPD_boxplot")
+                ),
+        tabPanel("Log Diameter vs Log Polydispersity",
+                 textOutput(outputId = "logD_logPD_title"),
+                 plotOutput(outputId = "logD_logPD_plot")
+                ),
+        tabPanel("Log Diameter vs Log % Intensity",
+                 textOutput(outputId = "logD_logI_title"),
+                 plotOutput(outputId = "logD_logI_plot")
+        )
+
+      )
+    )
+  )
+)
+
+
+server <- function(input, output){
+
+  data_csv <- reactive({
+    file1 <- input$file # Assign the about file df into file1
+    if(is.null(file1)){return()}
+    # Use the datapath information to read the csv
+    read.csv(file = file1$datapath, header = input$header, stringsAsFactors = FALSE, na.strings = c("", "--", "NULL", "NA"))
+    })
+
+  data_rv <- reactiveValues(data_csv = NULL)
+  data_rv$data_csv <- data_csv
+
+  output$about_file <- renderTable({
+    input$file
+  })
+
+  output$data_table <- renderTable({
+    if(is.null(data_rv$data_csv())){return()}
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(data_rv$data$Conditions)
+  })
+
+  output$tab1 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Membrane_Type))
+  })
+
+  output$tab2 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Protein_Type))
+  })
+
+  output$tab3 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(replace_na(data_rv$data$Protein_Conc, "(Missing)"))
+  })
+
+  output$tab4 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Lipid_Type))
+  })
+
+  output$tab5 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Lipid_Conc))
+  })
+
+  output$tab6 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Polymer_Type))
+  })
+
+  output$tab7 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(replace_na(data_rv$data$Polymer_Percentage, "(Missing)"))
+  })
+
+  output$tab8 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Buffer_Type))
+  })
+
+  output$tab9 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(replace_na(data_rv$data$Buffer_Conc, "(Missing)"))
+  })
+
+  output$tab10 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(replace_na(data_rv$data$pH, "(Missing)"))
+  })
+
+  output$tab11 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(replace_na(data_rv$data$Salt_Conc, "(Missing)"))
+  })
+
+  output$tab12 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(replace_na(data_rv$data$Polymer_Mr, "(Missing)"))
+  })
+
+  output$tab13 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Latex_Nanospheres))
+  })
+
+  output$tab14 <- renderTable({
+    data_rv$data <- load_data(data_rv$data_csv())
+    table(fct_explicit_na(data_rv$data$Experiment_ID))
+  })
+
+  output$logD_boxplot <- renderPlot({
+    if(is.null(data_rv$data_csv())){return()}
+    data_rv$data <- load_data(data_rv$data_csv())
+    chosen_xvar <- data_rv$data[, input$xvar]
+    chosen_xvar <- unlist(chosen_xvar)
+    chosen_variable <- data_rv$data[, input$variable]
+    chosen_variable <-unlist(chosen_variable)
+    data_rv$data$`Log Diameter` <- unlist(data_rv$data$`Log Diameter`)
+    Dboxplot <- log_diameter_boxplot(data_rv$data, xvar = chosen_xvar, variable = chosen_variable,
+                                    target = input$target, original = input$original, indent = input$indent)
+    return(Dboxplot)
+  })
+
+  output$logPD_boxplot <- renderPlot({
+    if(is.null(data_rv$data_csv())){return()}
+    data_rv$data <- load_data(data_rv$data_csv())
+    chosen_xvar <- data_rv$data[, input$xvar]
+    chosen_xvar <- unlist(chosen_xvar)
+    chosen_variable <- data_rv$data[, input$variable]
+    chosen_variable <-unlist(chosen_variable)
+    data_rv$data$`Log Polydispersity` <- unlist(data_rv$data$`Log Polydispersity`)
+    PDboxplot <- log_PD_boxplot(data_rv$data, xvar = chosen_xvar, variable = chosen_variable)
+    return(PDboxplot)
+  })
+
+  output$logD_logPD_plot <- renderPlot({
+    if(is.null(data_rv$data_csv())){return()}
+    data_rv$data <- load_data(data_rv$data_csv())
+    chosen_variable <- data_rv$data[, input$variable]
+    chosen_variable <-unlist(chosen_variable)
+    data_rv$data$`Log Diameter` <- unlist(data_rv$data$`Log Diameter`)
+    data_rv$data$`Log Polydispersity` <- unlist(data_rv$data$`Log Polydispersity`)
+    scatterplot <- plot_logD_v_logPD(data_rv$data, variable = chosen_variable)
+    return(scatterplot)
+  })
+  
+  output$logD_logI_plot <- renderPlot({
+    if(is.null(data_rv$data_csv())){return()}
+    data_rv$data <- load_data(data_rv$data_csv())
+    chosen_variable <- data_rv$data[, input$variable]
+    chosen_variable <-unlist(chosen_variable)
+    data_rv$data$`Log Diameter` <- unlist(data_rv$data$`Log Diameter`)
+    data_rv$data$`Log % Intensity`  <- unlist(data_rv$data$`Log % Intensity`)
+    scatterplot <- plot_logD_v_logintensity(data_rv$data, variable = chosen_variable)
+    return(scatterplot)
+  })
+
+  output$logD_title <- renderText({
+    input$plot_title
+  })
+
+  output$logPD_title <- renderText({
+    input$plot_title
+  })
+
+  output$logD_logPD_title <- renderText({
+    input$plot_title
+  })
+
+  output$logD_logI_title <- renderText({
+    input$plot_title
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
