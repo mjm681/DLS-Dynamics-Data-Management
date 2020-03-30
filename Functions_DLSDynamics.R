@@ -1,15 +1,4 @@
 
-library(stringr)
-library(ggplot2)
-library(tidyverse)
-library(stats)
-library(factoextra)
-library(ggpubr)
-library(stats)
-library(factoextra)
-library(dplyr)
-library(purrr)
-
 
 load_data <- function(data) {
   # Set correct headers
@@ -34,16 +23,16 @@ load_data <- function(data) {
   )
   colnames(data) <- peak_column_names # Give dataframe correct column names
   # Replace -- with NA
-  #data <- replace_with_na_all(data, condition = ~.x == "--") 
-  #data <- replace_with_na_all(data, condition = ~.x == "NULL")
-  #data <- replace_with_na_all(data, condition = ~.x == "")
+  data <- naniar::replace_with_na_all(data, condition = ~.x == "--")
+  data <- naniar::replace_with_na_all(data, condition = ~.x == "NULL")
+  data <- naniar::replace_with_na_all(data, condition = ~.x == "")
   # Make Item a combination of the conditions
-  data$Conditions <- paste(data$Membrane_Type, data$Protein_Type, 
-                           data$Protein_Conc, data$Lipid_Type, 
-                           data$Lipid_Conc, data$Polymer_Type, 
+  data$Conditions <- paste(data$Membrane_Type, data$Protein_Type,
+                           data$Protein_Conc, data$Lipid_Type,
+                           data$Lipid_Conc, data$Polymer_Type,
                            data$Polymer_Percentage, data$Buffer_Type,
                            data$Buffer_Conc, data$pH,
-                           data$Salt_Conc, data$Polymer_Mr, 
+                           data$Salt_Conc, data$Polymer_Mr,
                            data$Latex_Nanospheres,
                            sep = " - ")
   # Change columns into correct data type
@@ -67,8 +56,9 @@ load_data <- function(data) {
   data$Polymer_Mr <- as.numeric(data$Polymer_Mr)
   data$Image <- as.factor(data$Image)
   # Log transform the diameter and PD
-  data$`Log Diameter` <- log(data$`Peak Diameter (nm) (I)`)
-  data$`Log Polydispersity` <- log(data$`Peak Pd (nm) (I)`)
+  data$`Log Diameter` <- log10(data$`Peak Diameter (nm) (I)`)
+  data$`Log Polydispersity` <- log10(data$`Peak Pd (nm) (I)`)
+  data$`Log % Intensity` <- log10(data$`Peak %Intensity (I)`)
   return(data)
 }
 
@@ -87,39 +77,42 @@ sort_data <- function(data, sorting){
 
 
 log_diameter_boxplot <- function(data, xvar = Conditions, variable, target = T, original = F, indent = 1) {
-  xvar <- enquo(xvar)
-  variable <- enquo(variable)
-  plot <- ggplot(data, aes(x = !!xvar, y = `Log Diameter`, col = !!variable)) +
-    geom_boxplot() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = "Log Diameter for Single Peak") +
-    labs(colour = "Variable of Interest")
+  xvar <- dplyr::enquo(xvar)
+  variable <- dplyr::enquo(variable)
+  plot <- ggplot2::ggplot(data, ggplot2::aes(x = !!xvar, y = `Log Diameter`, col = !!variable)) +
+    ggplot2::geom_boxplot() +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1)) +
+    ggplot2::labs(title = "Log Diameter") +
+    ggplot2::labs(colour = "Variable of Interest")
   if ( target == TRUE ) {
-    plot <- plot + geom_hline(yintercept = 1, col = "black") +
-      annotate("text", label = "10nm", x = indent, y = 1, size = 3, colour = "black")
+    plot <- plot + ggplot2::geom_hline(yintercept = 1, col = "black") +
+      ggplot2::annotate("text", label = "10nm", x = indent, y = 1, size = 3, colour = "black")
   }
   if ( original == TRUE ) {
-    plot <- plot + geom_hline(yintercept = 2.3, col = "blue") +
-      annotate("text", label = "200nm", x = indent, y = 2.3, size = 3, colour = "blue")
+    plot <- plot + ggplot2::geom_hline(yintercept = 2.3, col = "blue") +
+      ggplot2::annotate("text", label = "200nm", x = indent, y = 2.3, size = 3, colour = "blue")
   }
   return(plot)
 }
 
 
 split_peaks <- function(data, peak){
-  split_peaks <- data %>% filter(`Peak Num` == peak)
+  if (!requireNamespace("dplyr", quietly = TRUE))
+    install.packages("dplyr")
+  library(dplyr)
+  split_peaks <- data  %>% filter(`Peak Num` == peak)
   return(split_peaks)
 }
 
 split_peak_variable <- function(data, peak, variable) {
-  variable <- enquo(variable) # Allows calling of variable as variable
+  variable <- dplyr::enquo(variable) # Allows calling of variable as variable
   split_data <- split_peaks(data, peak)
   split_variable <- select(split_data, !!variable)
   return(unlist(split_variable)) # Return the variable as a vector
 }
 
 split_peak_xvar <- function(data, peak, xvar) {
-  xvar <- enquo(xvar) # Allows calling of xvar as variable
+  xvar <- dplyr::enquo(xvar) # Allows calling of xvar as variable
   split_data <- split_peaks(data, peak)
   split_xvar <- select(split_data, !!xvar)
   return(unlist(split_xvar)) # Return the variable as a vector
@@ -127,25 +120,25 @@ split_peak_xvar <- function(data, peak, xvar) {
 
 
 log_diameter_peak_boxplot <- function(data, peak, xvar, variable, target, original, indent) {
-  variable <- enquo(variable) # Allows calling of variable as variable
-  xvar <- enquo(xvar) # Allows calling of xvar as variable
+  variable <- dplyr::enquo(variable) # Allows calling of variable as variable
+  xvar <- dplyr::enquo(xvar) # Allows calling of xvar as variable
   split_peaks <- split_peaks(data, peak)
   split_variable <- split_peak_variable(data, peak, !!variable)
   split_xvar <- split_peak_xvar(data, peak, !!xvar)
-  plot_log_diameter(split_peaks, split_xvar, split_variable, target, original, indent)
+  log_diameter_boxplot(split_peaks, split_xvar, split_variable, target, original, indent)
 }
 
 
 plot_logD_v_logPD <- function(data, variable) {
-  variable <- enquo(variable)
-  ggplot(data, aes(x = `Log Polydispersity`, y = `Log Diameter`, col = !!variable)) +
-    geom_point() +
-    labs(xlab = "Log Polydispersity", ylab = "Log Diameter", title = "Log Diameter vs Log Polydispersity")
+  variable <- dplyr::enquo(variable)
+  ggplot2::ggplot(data, ggplot2::aes(x = `Log Polydispersity`, y = `Log Diameter`, col = !!variable)) +
+    ggplot2::geom_point() +
+    ggplot2::labs(xlab = "Log Polydispersity", ylab = "Log Diameter", title = "Log Diameter vs Log Polydispersity")
 }
 
 
 plot_logD_v_logPD_peak <- function(data, peak, variable) {
-  variable <- enquo(variable) # Allows calling of variable as variable
+  variable <- dplyr::enquo(variable) # Allows calling of variable as variable
   split_peaks <- split_peaks(data, peak)
   split_variable <- split_peak_variable(data, peak, !!variable)
   plot_logD_v_logPD(split_peaks, split_variable)
@@ -153,12 +146,27 @@ plot_logD_v_logPD_peak <- function(data, peak, variable) {
 
 
 log_PD_boxplot <- function(data, xvar, variable, indent) {
-  xvar <- enquo(xvar)
-  variable <- enquo(variable)
-  plot <- ggplot(data, aes(x = !!xvar, y = `Log Polydispersity`, col = !!variable)) +
-    geom_boxplot() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = "Log Polydispersity for Single Peak") +
-    labs(colour = "Variable of Interest")
+  xvar <- dplyr::enquo(xvar)
+  variable <- dplyr::enquo(variable)
+  plot <- ggplot2::ggplot(data, ggplot2::aes(x = !!xvar, y = `Log Polydispersity`, col = !!variable)) +
+    ggplot2::geom_boxplot() +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1)) +
+    ggplot2::labs(title = "Log Polydispersity for Single Peak") +
+    ggplot2::labs(colour = "Variable of Interest")
   return(plot)
+}
+
+plot_logD_v_logintensity <- function(data, variable) {
+  variable <- dplyr::enquo(variable)
+  ggplot2::ggplot(data, ggplot2::aes(x = `Log Diameter`, y = `Log % Intensity`, col = !!variable)) +
+    ggplot2::geom_point() +
+    ggplot2::labs(xlab = "% Intensity", ylab = "Log Diameter", title = "Log Diameter vs Log % Intensity")
+}
+
+
+plot_logD_v_logintensity_peak <- function(data, peak, variable) {
+  variable <- dplyr::enquo(variable) # Allows calling of variable as variable
+  split_peaks <- split_peaks(data, peak)
+  split_variable <- split_peak_variable(data, peak, !!variable)
+  plot_logD_v_logintensity(split_peaks, split_variable)
 }
