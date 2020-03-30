@@ -9,7 +9,6 @@ library(stats)
 library(factoextra)
 library(dplyr)
 library(purrr)
-library(devtools)
 
 
 load_data <- function(data) {
