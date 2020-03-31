@@ -1,0 +1,24 @@
+Package: DLSDynamicsData
+Type: Package
+Title: Visualisation of DLS Dynamics Peak Data
+Version: 0.1.0
+Author: person("Megan", "Munro", email = "meganjmunro3@gmail.com"
+Maintainer: Megan Munro <meganjmunro3@gmail.com>
+Description: Contains the functions to standardise and visualise peak data 
+     from DYNAMICS Software (version 7.9.1.4.). Requires .csv of data 
+     loaded as dataframe.
+Imports:
+  stringr,
+  ggplot2,
+  tidyverse,
+  stats,
+  factoextra,
+  ggpubr,
+  naniar,
+  stats,
+  factoextra,
+  dplyr,
+  purrr
+License: N/A
+Encoding: UTF-8
+LazyData: true
